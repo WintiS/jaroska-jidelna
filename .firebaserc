@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "jaroska-jidelna",
+    "jaroskajidelna": "jaroska-jidelna",
+    "staging": "jaroska-jidelna"
+  },
+  "targets": {},
+  "etags": {}
+}

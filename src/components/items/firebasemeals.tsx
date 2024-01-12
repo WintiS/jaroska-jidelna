@@ -1,13 +1,18 @@
-import {component$} from "@builder.io/qwik";
-
+import {component$, Resource, useResource$, useSignal, useStore, useTask$} from "@builder.io/qwik";
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+
+import {
+    getStorage, ref, uploadBytes, getDownloadURL
+} from "firebase/storage";
+import {
+    getFirestore, collection, onSnapshot,
+    addDoc, query, where, getDocs
+} from "firebase/firestore"
+
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
     apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
     authDomain: "jaroska-jidelna.firebaseapp.com",
@@ -20,11 +25,45 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const storage = getStorage(app);
+const db = getFirestore()
+const colRef = collection(db, "jidla")
+const colRefNeOff = collection(db, "neofJidla")
+
+
+
 export const FirebaseMeals = component$(() => {
+    const query = useSignal("ku")
+    const fetchAllMeals = useResource$<object[]>(async () => {
+        const mealArray: any[] = []
+        const querySnap = await getDocs(colRef)
+        querySnap.forEach((meal) => {
+            mealArray.push(meal.data())
+        })
+        return mealArray
+    })
+
+    // const getDownloadurl = useResource$(async (filename) => {
+    //     getDownloadURL(ref(storage, filename))
+    //         .then((downloadUrl) => {
+    //             return downloadUrl
+    //         })
+    // })
+
     return(
         <div>
-
+            <Resource
+                value={fetchAllMeals}
+                onResolved={(docs: any[]) =>
+                    <div>
+                        {docs.map(doc => (
+                            <div key={doc.id}>
+                                <p class={"text-white"}>{doc.jmeno}</p>
+                            </div>
+                            ))}
+                    </div>
+                    }
+                />
         </div>
     )
 })

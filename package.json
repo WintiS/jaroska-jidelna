@@ -22,7 +22,7 @@
     "fmt.check": "prettier --check .",
     "lint": "eslint \"src/**/*.ts*\"",
     "preview": "qwik build preview && vite preview --open",
-    "serve": "qwik build && firebase emulators:start",
+    "serve": "firebase emulators:start",
     "start": "vite --open --mode ssr",
     "qwik": "qwik"
   },

@@ -5,7 +5,7 @@ interface Props {
     location?: string,
 }
 
-export const Addmeals = component$((props: Props) => {
+export const addmeals = component$((props: Props) => {
     const url = useSignal('https://jaroskajidelna.online//.netlify/functions/meta');
     const fetchMeals = useResource$<any>(async ({track}) => {
         track(() => url.value);
@@ -17,8 +17,8 @@ export const Addmeals = component$((props: Props) => {
             return data.data as string;
         }
         catch (e) {
-            return [e]
             console.log(e)
+            return [e]
         }
 
     });
@@ -27,7 +27,7 @@ export const Addmeals = component$((props: Props) => {
             value={fetchMeals}
             onPending={() => <div class={"w-96"}><p>{"Loading"}</p></div>}
             onRejected={() => <p>REJECTED</p>}
-            onResolved={(jidla) => (
+            onResolved={(jidla: any[]) => (
                 <div class={"flex justify-center items-center p-8 bg-amber-200 rounded"}>
                     {jidla.map((jidlo, i) => (
                         <div key={i} class={"p-2 rounded bg-amber-100 m-2"}>

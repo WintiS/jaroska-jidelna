@@ -1,43 +1,204 @@
-import { component$ } from "@builder.io/qwik";
-import type { DocumentHead } from "@builder.io/qwik-city";
+import {component$, useSignal, useTask$} from "@builder.io/qwik";
+import type {DocumentHead, RequestHandler} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
-import { HiArrowDownRightOutline } from "@qwikest/icons/heroicons";
-import {Addmeals} from "~/components/items/addmeals";
+import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
+import {addmeals} from "~/components/items/addmeals";
+import {FirebaseMeals} from "~/components/items/firebasemeals";
+import {routeLoader$, server$} from "@builder.io/qwik-city";
+import {addDoc, collection, doc, getDocs, getFirestore} from "firebase/firestore";
+import {initializeApp} from "firebase/app";
+import {getDownloadURL, getStorage, ref} from "firebase/storage";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
+    authDomain: "jaroska-jidelna.firebaseapp.com",
+    projectId: "jaroska-jidelna",
+    storageBucket: "jaroska-jidelna.appspot.com",
+    messagingSenderId: "947035882834",
+    appId: "1:947035882834:web:3965f23658d5640c3ca68b",
+    measurementId: "G-WHSTF0W8B9"
+};
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const db = getFirestore()
+const colRef = collection(db, "meals")
+
+
 
 export default component$(() => {
-  return (
-    <main class="bg-black">
-      <div class={"h-70 bg-black flex justify-center"}>
-        <div class={"flex flex-col items-center justify-center"}>
-          <MainNav name={"Vyhledat fotku jídla"} location={"#linkig"}/>
-          <MainNav name={"Nahrát fotku jílda"} location={'#'}/>
-        </div>
-      </div>
-      <div>
-        <div>
-          <div class={"text-white flex text-2xl"}>
-              <HiArrowDownRightOutline class={"w-10 h-10 ml-1"}/>
-              <p class={"text-center mr-10"}>Vyberte, ke kterému z dnešních jídel chcete nahrát fotku:</p>
-          </div>
-        </div>
-      </div>
-      <div>
-          <p class={"text-white"}>Not zion or over there, yearn the freedom.aivca</p>
-      </div>
-    </main>
-  );
+    const querySignal = useSignal("")
+    let renderedMealsArray: { jmeno: string, fileName: string, imageURL: string }[] = []
+    const meals = useMeals()
+
+    useTask$(async ({track, cleanup}) => {
+        track(() => querySignal.value)
+        const query = querySignal.value
+
+        const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
+        const querySnap = await getDocs(colRef)
+
+        querySnap.forEach((meal) => {
+            if (query) {
+                const normalizedFilter = query
+                    .normalize("NFD") // Normalize diacritics
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                const normalizedMealName = meal.data().jmeno
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+
+                if (normalizedMealName.includes(normalizedFilter)) {
+                    mealArray.push(meal.data() as any)
+                } else {
+                    return
+                }
+
+            } else {
+                mealArray.push(meal.data() as any)
+            }
+        })
+
+        renderedMealsArray = mealArray
+
+        cleanup(() => renderedMealsArray = [])
+    })
+
+    return (
+        <main class="bg-black">
+            <div class={"h-70 bg-black flex justify-center"}>
+                <div class={"flex flex-col items-center justify-center"}>
+                    <MainNav name={"Vyhledat fotku jídla"} location={"#linkig"}/>
+                    <MainNav name={"Nahrát fotku jílda"} location={'#'}/>
+                </div>
+            </div>
+            <div>
+                <div>
+                    <div class={"text-white flex text-2xl"}>
+                        <HiArrowDownRightOutline class={"w-10 h-10 ml-1"}/>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class={"flex justify-center items-center"}>
+                    <div class={"flex justify-center items-center flex-col"}>
+                        <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
+                        <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white"}/>
+                        <input type="submit" class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} onClick$={() => {
+
+                        }}/>
+                    </div>
+                </div>
+                <div class={"flex flex-wrap justify-center"}>
+                    {
+                        meals.value.map((e) => {
+
+                            let modifiedURL = (e.imageURL)
+                            let extension = ("")
+                            let result = ([""])
+
+                            result = e.imageURL.split(".png")
+                            extension = ".png"
+                            if (result[1]){
+                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
+                            }
+
+                            if(!result[1]){
+                                result = e.imageURL.split(".jpeg")
+                                extension = ".jpeg"
+                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
+                            }
+                            if(!result[1]){
+                                result = e.imageURL.split(".jpg")
+                                extension = ".jpg"
+                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
+                            }
+
+
+
+                            return(
+                                <div key={e.fileName} class={"flex items-center flex-col shadow-gray-700 shadow mt-3 pb-1.5 mx-1 rounded-xl"}>
+                                    <div>
+                                        <img src={modifiedURL} alt={e.jmeno} loading={"lazy"} class={"rounded"} width={180} height={180}/>
+                                    </div>
+                                    <div class={"w-40 mt-1"}>
+                                        <p class={"text-white text-sm"}>{e.jmeno}</p>
+                                    </div>
+                                </div>
+                            )
+                        })
+                    }
+                </div>
+            </div>
+        </main>
+    );
 });
 
+
+
+export const useMeals = routeLoader$(async ({cacheControl}) => {
+    cacheControl({
+        staleWhileRevalidate: 60 * 60 * 24, // day
+        maxAge: 30, // seconds
+    });
+
+    const start = performance.now()
+
+    const mealArray: { jmeno: string, fileName: string, imageURL:string }[] = []
+    const querySnap = await getDocs(colRef)
+
+    querySnap.forEach((meal) => {
+        mealArray.push(meal.data() as any)
+    })
+
+
+
+    const end = performance.now()
+
+    console.log(end - start)
+    return mealArray
+
+})
+
+const serverMeals = server$(async function (query: string){
+    const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
+    const querySnap = await getDocs(colRef)
+
+    querySnap.forEach((meal) => {
+        if (query) {
+            const normalizedFilter = query
+                .normalize("NFD") // Normalize diacritics
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+            const normalizedMealName = meal.data().jmeno
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+
+            if (normalizedMealName.includes(normalizedFilter)) {
+                mealArray.push(meal.data() as any)
+            } else {
+                return
+            }
+
+        } else {
+            mealArray.push(meal.data() as any)
+        }
+    })
+
+    return mealArray
+})
+
 export const head: DocumentHead = {
-  title: "jaroska.jidena online",
-  meta: [
-    {
-      name: "description",
-      content: "Vyhledejte si, jak jídla na Jarošce vypadají",
-    },
-      {
-      name: "keywords",
-      content: "jaroška, jídelna, obědy, oběd, školní"
-      },
-  ],
+    title: "jaroska.jidena online",
+    meta: [
+        {
+            name: "description",
+            content: "Vyhledejte si, jak jídla na Jarošce vypadají",
+        },
+        {
+            name: "keywords",
+            content: "jaroška, jídelna, obědy, oběd, školní, škola"
+        },
+    ],
 };
