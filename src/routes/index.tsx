@@ -1,4 +1,4 @@
-import {component$, useSignal, useTask$} from "@builder.io/qwik";
+import {component$, useSignal, useStore, useTask$} from "@builder.io/qwik";
 import type {DocumentHead, RequestHandler} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
 import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
@@ -8,6 +8,7 @@ import {routeLoader$, server$} from "@builder.io/qwik-city";
 import {addDoc, collection, doc, getDocs, getFirestore} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
 import {getDownloadURL, getStorage, ref} from "firebase/storage";
+import {isServer} from "@builder.io/qwik/build";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
@@ -27,17 +28,18 @@ const colRef = collection(db, "meals")
 
 export default component$(() => {
     const querySignal = useSignal("")
-    let renderedMealsArray: { jmeno: string, fileName: string, imageURL: string }[] = []
-    const meals = useMeals()
+    const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
+    const querySketch = useSignal("")
+
 
     useTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
         const query = querySignal.value
-
-        const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
         const querySnap = await getDocs(colRef)
-
+        console.log("RUN")
+        isServer? console.log("running usetask$ on server") : renderedMealsArray.length = 0
         querySnap.forEach((meal) => {
+
             if (query) {
                 const normalizedFilter = query
                     .normalize("NFD") // Normalize diacritics
@@ -49,19 +51,17 @@ export default component$(() => {
                     .toLowerCase()
 
                 if (normalizedMealName.includes(normalizedFilter)) {
-                    mealArray.push(meal.data() as any)
+
+                    renderedMealsArray.push(meal.data() as any)
                 } else {
                     return
                 }
 
             } else {
-                mealArray.push(meal.data() as any)
+                renderedMealsArray.push(meal.data() as any)
             }
         })
-
-        renderedMealsArray = mealArray
-
-        cleanup(() => renderedMealsArray = [])
+        cleanup(() => renderedMealsArray.length = 0)
     })
 
     return (
@@ -81,17 +81,22 @@ export default component$(() => {
             </div>
             <div>
                 <div class={"flex justify-center items-center"}>
-                    <div class={"flex justify-center items-center flex-col"}>
-                        <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
-                        <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white"}/>
-                        <input type="submit" class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} onClick$={() => {
-
-                        }}/>
+                    <div class={""}>
+                            <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
+                        <form preventdefault:submit onSubmit$={() => {
+                            querySignal.value = querySketch.value
+                            console.log("submit")
+                        }}>
+                            <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white"} onInput$={(e) => {
+                                querySketch.value = (e.target as any).value
+                            }}/>
+                            <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} />
+                        </form>
                     </div>
                 </div>
                 <div class={"flex flex-wrap justify-center"}>
                     {
-                        meals.value.map((e) => {
+                        renderedMealsArray.map((e) => {
 
                             let modifiedURL = (e.imageURL)
                             let extension = ("")
