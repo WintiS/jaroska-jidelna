@@ -5,7 +5,7 @@ import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
 import {addmeals} from "~/components/items/addmeals";
 import {FirebaseMeals} from "~/components/items/firebasemeals";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
-import {addDoc, collection, doc, getDocs, getFirestore} from "firebase/firestore";
+import {addDoc, collection, doc, getDocs, getFirestore, updateDoc} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
 import {getDownloadURL, getStorage, ref} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
@@ -90,7 +90,10 @@ export default component$(() => {
                             <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white"} onInput$={(e) => {
                                 querySketch.value = (e.target as any).value
                             }}/>
-                            <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} />
+                            <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} onClick$={() => {
+
+
+                            }}/>
                         </form>
                     </div>
                 </div>
@@ -141,58 +144,25 @@ export default component$(() => {
 
 
 
-export const useMeals = routeLoader$(async ({cacheControl}) => {
-    cacheControl({
-        staleWhileRevalidate: 60 * 60 * 24, // day
-        maxAge: 30, // seconds
-    });
-
-    const start = performance.now()
-
-    const mealArray: { jmeno: string, fileName: string, imageURL:string }[] = []
+export const useEditMeals = routeLoader$(async () => {
     const querySnap = await getDocs(colRef)
-
     querySnap.forEach((meal) => {
-        mealArray.push(meal.data() as any)
+        const docRef = doc(colRef, meal.id)
+        const normalizedMealName = meal.data().jmeno
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+
+        updateDoc(docRef, {
+            normalizedMealName: normalizedMealName
+        });
+
     })
-
-
-
-    const end = performance.now()
-
-    console.log(end - start)
-    return mealArray
 
 })
 
-const serverMeals = server$(async function (query: string){
-    const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
-    const querySnap = await getDocs(colRef)
 
-    querySnap.forEach((meal) => {
-        if (query) {
-            const normalizedFilter = query
-                .normalize("NFD") // Normalize diacritics
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
-            const normalizedMealName = meal.data().jmeno
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
 
-            if (normalizedMealName.includes(normalizedFilter)) {
-                mealArray.push(meal.data() as any)
-            } else {
-                return
-            }
-
-        } else {
-            mealArray.push(meal.data() as any)
-        }
-    })
-
-    return mealArray
-})
 
 export const head: DocumentHead = {
     title: "jaroska.jidena online",
