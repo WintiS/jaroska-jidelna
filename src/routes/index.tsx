@@ -5,7 +5,7 @@ import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
 import {addmeals} from "~/components/items/addmeals";
 import {FirebaseMeals} from "~/components/items/firebasemeals";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
-import {addDoc, collection, doc, getDocs, getFirestore, query, where} from "firebase/firestore";
+import {addDoc, collection, doc, getDocs, getFirestore} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
 import {getDownloadURL, getStorage, ref} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
@@ -24,42 +24,43 @@ const storage = getStorage(app);
 const db = getFirestore()
 const colRef = collection(db, "meals")
 
-interface Meals {
-    jmeno: string,
-    fileName: string,
-    imageURL: string,
-    normalizedMealName: string,
-}
+
 
 export default component$(() => {
     const querySignal = useSignal("")
-    const renderedMealsArray:Meals[] = useStore([], {deep:true})
+    const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
     const querySketch = useSignal("")
 
 
     useTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
-        const queryString = querySignal.value
-
+        const query = querySignal.value
+        const querySnap = await getDocs(colRef)
         console.log("RUN")
         isServer? console.log("running usetask$ on server") : renderedMealsArray.length = 0
+        querySnap.forEach((meal) => {
 
+            if (query) {
+                const normalizedFilter = query
+                    .normalize("NFD") // Normalize diacritics
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                const normalizedMealName = meal.data().jmeno
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
 
-            if (queryString) {
-                const normalizedFilter = queryString.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-                const q = query(colRef, where("normalizedMealName", "", normalizedFilter))
+                if (normalizedMealName.includes(normalizedFilter)) {
 
-                const querySnap = await getDocs(q)
-                querySnap.forEach((meal) => {
-                    renderedMealsArray.push(meal.data() as Meals)
-                })
+                    renderedMealsArray.push(meal.data() as any)
+                } else {
+                    return
+                }
 
             } else {
-                const querySnap = await getDocs(colRef)
-                querySnap.forEach((meal) => {
-                    renderedMealsArray.push(meal.data() as Meals)
-                })
+                renderedMealsArray.push(meal.data() as any)
             }
+        })
         cleanup(() => renderedMealsArray.length = 0)
     })
 
@@ -140,10 +141,58 @@ export default component$(() => {
 
 
 
+export const useMeals = routeLoader$(async ({cacheControl}) => {
+    cacheControl({
+        staleWhileRevalidate: 60 * 60 * 24, // day
+        maxAge: 30, // seconds
+    });
+
+    const start = performance.now()
+
+    const mealArray: { jmeno: string, fileName: string, imageURL:string }[] = []
+    const querySnap = await getDocs(colRef)
+
+    querySnap.forEach((meal) => {
+        mealArray.push(meal.data() as any)
+    })
 
 
 
+    const end = performance.now()
 
+    console.log(end - start)
+    return mealArray
+
+})
+
+const serverMeals = server$(async function (query: string){
+    const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
+    const querySnap = await getDocs(colRef)
+
+    querySnap.forEach((meal) => {
+        if (query) {
+            const normalizedFilter = query
+                .normalize("NFD") // Normalize diacritics
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+            const normalizedMealName = meal.data().jmeno
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+
+            if (normalizedMealName.includes(normalizedFilter)) {
+                mealArray.push(meal.data() as any)
+            } else {
+                return
+            }
+
+        } else {
+            mealArray.push(meal.data() as any)
+        }
+    })
+
+    return mealArray
+})
 
 export const head: DocumentHead = {
     title: "jaroska.jidena online",
