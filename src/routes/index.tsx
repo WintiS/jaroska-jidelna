@@ -5,7 +5,7 @@ import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
 import {addmeals} from "~/components/items/addmeals";
 import {FirebaseMeals} from "~/components/items/firebasemeals";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
-import {addDoc, collection, doc, getDocs, getFirestore} from "firebase/firestore";
+import {addDoc, collection, doc, getDocs, getFirestore, query} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
 import {getDownloadURL, getStorage, ref} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
@@ -24,17 +24,27 @@ const storage = getStorage(app);
 const db = getFirestore()
 const colRef = collection(db, "meals")
 
+export function exportQueryToUrl(query: string) {
+    const urlQuery = new URLSearchParams()
+    if (query) urlQuery.set("q", query)
+
+    return urlQuery.toString()
+
+}
+
 
 
 export default component$(() => {
     const querySignal = useSignal("")
     const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
     const querySketch = useSignal("")
+    const useQuery = useQLoader()
+
 
 
     useTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
-        const query = querySignal.value
+        const query = isServer? useQuery.value : querySignal.value
         const querySnap = await getDocs(colRef)
         console.log("RUN")
         isServer? console.log("running usetask$ on server") : renderedMealsArray.length = 0
@@ -86,8 +96,10 @@ export default component$(() => {
                         <form preventdefault:submit onSubmit$={() => {
                             querySignal.value = querySketch.value
                             console.log("submit")
+                            window.history.replaceState({}, "", "?" + exportQueryToUrl(querySignal.value));
+
                         }}>
-                            <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white"} onInput$={(e) => {
+                            <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white max-w-lg"} value={useQuery.value} onInput$={(e) => {
                                 querySketch.value = (e.target as any).value
                             }}/>
                             <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} />
@@ -164,6 +176,11 @@ export const useMeals = routeLoader$(async ({cacheControl}) => {
     return mealArray
 
 })
+
+export const useQLoader = routeLoader$(async ({query}) => {
+    return query.get("q") || ""
+})
+
 
 const serverMeals = server$(async function (query: string){
     const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
