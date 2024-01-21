@@ -3,7 +3,6 @@ import type {DocumentHead, RequestHandler} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
 import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
 import {addmeals} from "~/components/items/addmeals";
-import {FirebaseMeals} from "~/components/items/firebasemeals";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
 import {addDoc, collection, doc, getDocs, getFirestore, query} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
