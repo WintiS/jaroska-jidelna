@@ -39,6 +39,8 @@ export default component$(() => {
     const querySketch = useSignal("")
     const useQuery = useQLoader()
 
+    const jaroskaMeals = useJaroskaMeals()
+
 
 
     useTask$(async ({track, cleanup}) => {
@@ -86,6 +88,17 @@ export default component$(() => {
                     <div class={"text-white flex text-2xl"}>
                         <HiArrowDownRightOutline class={"w-10 h-10 ml-1"}/>
                     </div>
+                    <div>
+                        {
+                            jaroskaMeals.value.map((e) => {
+
+
+                                return(
+                                    <div class={"text-white"}>{e}</div>
+                                )
+                            })
+                        }
+                    </div>
                 </div>
             </div>
             <div>
@@ -94,7 +107,7 @@ export default component$(() => {
                             <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
                         <form preventdefault:submit onSubmit$={() => {
                             querySignal.value = querySketch.value
-                            console.log("submit")
+                            console.log(jaroskaMeals.value)
                             window.history.replaceState({}, "", "?" + exportQueryToUrl(querySignal.value));
 
                         }}>
@@ -208,6 +221,12 @@ const serverMeals = server$(async function (query: string){
     })
 
     return mealArray
+})
+
+export const useJaroskaMeals = routeLoader$(async() => {
+    const res = await fetch("https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=2024-01-21T23%3A00%3A00.000Z&CanteenId=1")
+    const meals = await res.json()
+    return meals.groups[0].rows.map((meal) => meal.item.mealName)
 })
 
 export const head: DocumentHead = {
