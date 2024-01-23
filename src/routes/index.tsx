@@ -7,6 +7,7 @@ import {addDoc, collection, doc, getDocs, getFirestore, query} from "firebase/fi
 import {initializeApp} from "firebase/app";
 import {getDownloadURL, getStorage, ref} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
+import {Switchbutton} from "~/components/items/switchbutton";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
@@ -29,6 +30,18 @@ export function exportQueryToUrl(query: string) {
     return urlQuery.toString()
 
 }
+
+export function getCurrentDate(setBack:number): string {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0'); // Adding 1 because months are zero-based
+    const day = today.getDate().toString().padStart(2, '0');
+
+    const formattedDate = `${year}-${month}-${Number(day)-setBack}`;
+    return formattedDate;
+}
+
 interface MealItem {
     item: {
         mealName: string;
@@ -37,13 +50,14 @@ interface MealItem {
 
 
 export default component$(() => {
+    const state = useSignal(true)
     const querySignal = useSignal("")
     const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
     const querySketch = useSignal("")
+
     const useQuery = useQLoader()
-
     const jaroskaMeals = useJaroskaMeals()
-
+    const yesterdayMeals = useJaroskaMealsYesterday()
 
 
     useTask$(async ({track, cleanup}) => {
@@ -88,18 +102,25 @@ export default component$(() => {
             </div>
             <div>
                 <div>
-                    <div class={"text-white flex text-2xl"}>
-                        <HiArrowDownRightOutline class={"w-10 h-10 ml-1"}/>
-                    </div>
+                    <Switchbutton state={state} />
                     <div>
+
                         {
-                            jaroskaMeals.value.map((e:string) => {
+                            state.value?
+                                jaroskaMeals.value.map((e:string) => {
 
+                                    return(
+                                        <div class={"text-white"} key={e}>{e}</div>
+                                    )
+                                })
+                                :
+                                yesterdayMeals.value.map((e:string) => {
 
-                                return(
-                                    <div class={"text-white"} key={e}>{e}</div>
-                                )
-                            })
+                                    return(
+                                        <div class={"text-white"} key={e}>{e}</div>
+                                    )
+                                })
+
                         }
                     </div>
                 </div>
@@ -166,32 +187,6 @@ export default component$(() => {
     );
 });
 
-
-
-export const useMeals = routeLoader$(async ({cacheControl}) => {
-    cacheControl({
-        staleWhileRevalidate: 60 * 60 * 24, // day
-        maxAge: 30, // seconds
-    });
-
-    const start = performance.now()
-
-    const mealArray: { jmeno: string, fileName: string, imageURL:string }[] = []
-    const querySnap = await getDocs(colRef)
-
-    querySnap.forEach((meal) => {
-        mealArray.push(meal.data() as any)
-    })
-
-
-
-    const end = performance.now()
-
-    console.log(end - start)
-    return mealArray
-
-})
-
 export const useQLoader = routeLoader$(async ({query}) => {
     return query.get("q") || ""
 })
@@ -227,7 +222,16 @@ const serverMeals = server$(async function (query: string){
 })
 
 export const useJaroskaMeals = routeLoader$(async() => {
-    const res = await fetch("https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=2024-01-21T23%3A00%3A00.000Z&CanteenId=1")
+    const currentDate = getCurrentDate(1)
+    const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
+    const meals = await res.json()
+    const rows = meals.groups[0].rows
+    return rows.map((meal: MealItem) => meal.item.mealName)
+})
+
+export const useJaroskaMealsYesterday = routeLoader$(async () => {
+    const currentDate = getCurrentDate(2)
+    const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
     const meals = await res.json()
     const rows = meals.groups[0].rows
     return rows.map((meal: MealItem) => meal.item.mealName)
