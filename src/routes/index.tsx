@@ -2,7 +2,6 @@ import {component$, useSignal, useStore, useTask$} from "@builder.io/qwik";
 import type {DocumentHead, RequestHandler} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
 import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
-import {addmeals} from "~/components/items/addmeals";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
 import {addDoc, collection, doc, getDocs, getFirestore, query} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
@@ -30,7 +29,11 @@ export function exportQueryToUrl(query: string) {
     return urlQuery.toString()
 
 }
-
+interface MealItem {
+    item: {
+        mealName: string;
+    };
+}
 
 
 export default component$(() => {
@@ -90,11 +93,11 @@ export default component$(() => {
                     </div>
                     <div>
                         {
-                            jaroskaMeals.value.map((e) => {
+                            jaroskaMeals.value.map((e:string) => {
 
 
                                 return(
-                                    <div class={"text-white"}>{e}</div>
+                                    <div class={"text-white"} key={e}>{e}</div>
                                 )
                             })
                         }
@@ -226,7 +229,8 @@ const serverMeals = server$(async function (query: string){
 export const useJaroskaMeals = routeLoader$(async() => {
     const res = await fetch("https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=2024-01-21T23%3A00%3A00.000Z&CanteenId=1")
     const meals = await res.json()
-    return meals.groups[0].rows.map((meal) => meal.item.mealName)
+    const rows = meals.groups[0].rows
+    return rows.map((meal: MealItem) => meal.item.mealName)
 })
 
 export const head: DocumentHead = {
