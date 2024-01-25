@@ -1,13 +1,13 @@
 import {component$, useSignal, useStore, useTask$} from "@builder.io/qwik";
-import type {DocumentHead, RequestHandler} from "@builder.io/qwik-city";
-import {MainNav} from "~/components/items/mainnav";
-import {HiArrowDownRightOutline} from "@qwikest/icons/heroicons";
+import type {DocumentHead} from "@builder.io/qwik-city";
 import {routeLoader$, server$} from "@builder.io/qwik-city";
-import {addDoc, collection, doc, getDocs, getFirestore, query} from "firebase/firestore";
+import {MainNav} from "~/components/items/mainnav";
+import {collection, getDocs, getFirestore, limit, orderBy, query} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
-import {getDownloadURL, getStorage, ref} from "firebase/storage";
+import {getStorage} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
 import {Switchbutton} from "~/components/items/switchbutton";
+import {UploadMeal} from "~/components/items/uploadmeal";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
@@ -22,6 +22,7 @@ const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 const db = getFirestore()
 const colRef = collection(db, "meals")
+const limititedColRef = query(colRef, orderBy("jmeno"), limit(12))
 
 export function exportQueryToUrl(query: string) {
     const urlQuery = new URLSearchParams()
@@ -38,9 +39,16 @@ export function getCurrentDate(setBack:number): string {
     const month = (today.getMonth() + 1).toString().padStart(2, '0'); // Adding 1 because months are zero-based
     const day = today.getDate().toString().padStart(2, '0');
 
-    const formattedDate = `${year}-${month}-${Number(day)-setBack}`;
-    return formattedDate;
+    return `${year}-${month}-${Number(day) - setBack}`;
 }
+
+export const normalize = (element: string): string => {
+    return element
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+};
+
 
 interface MealItem {
     item: {
@@ -59,24 +67,17 @@ export default component$(() => {
     const jaroskaMeals = useJaroskaMeals()
     const yesterdayMeals = useJaroskaMealsYesterday()
 
-
     useTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
         const query = isServer? useQuery.value : querySignal.value
-        const querySnap = await getDocs(colRef)
-        console.log("RUN")
+        let querySnap
+        query? querySnap = await getDocs(colRef) : querySnap = await getDocs(limititedColRef)
         isServer? console.log("running usetask$ on server") : renderedMealsArray.length = 0
         querySnap.forEach((meal) => {
 
             if (query) {
-                const normalizedFilter = query
-                    .normalize("NFD") // Normalize diacritics
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase()
-                const normalizedMealName = meal.data().jmeno
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase()
+                const normalizedFilter = normalize(query)
+                const normalizedMealName = normalize(meal.data().jmeno)
 
                 if (normalizedMealName.includes(normalizedFilter)) {
 
@@ -93,52 +94,46 @@ export default component$(() => {
     })
 
     return (
-        <main class="bg-black">
-            <div class={"h-70 bg-black flex justify-center"}>
+        <main class="bg-blackg">
+            <div class={"h-70 flex justify-center"}>
                 <div class={"flex flex-col items-center justify-center"}>
-                    <MainNav name={"Vyhledat fotku jídla"} location={"#linkig"}/>
-                    <MainNav name={"Nahrát fotku jílda"} location={'#'}/>
+                    <MainNav name={"Vyhledat fotku jídla"} location={"#search"}/>
+                    <MainNav name={"Nahrát fotku jílda"} location={'#upload'}/>
                 </div>
             </div>
             <div>
-                <div>
-                    <Switchbutton state={state} />
-                    <div>
+                <div id={"upload"}>
+                    <div class="flex justify-center items-center">
+                        <Switchbutton state={state}/>
+                    </div>
+                    <div class={"flex justify-center flex-col items-center gap-2"}>
 
                         {
                             state.value?
                                 jaroskaMeals.value.map((e:string) => {
-
-                                    return(
-                                        <div class={"text-white"} key={e}>{e}</div>
-                                    )
+                                    return(<UploadMeal name={e} key={e}/>)
                                 })
                                 :
                                 yesterdayMeals.value.map((e:string) => {
-
-                                    return(
-                                        <div class={"text-white"} key={e}>{e}</div>
-                                    )
+                                    return(<UploadMeal name={e} key={e}/>)
                                 })
-
                         }
                     </div>
                 </div>
             </div>
             <div>
-                <div class={"flex justify-center items-center"}>
-                    <div class={""}>
+                <div class={"flex justify-center items-center mt-20"}>
+                    <div id={"search"}>
                             <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
                         <form preventdefault:submit onSubmit$={() => {
                             querySignal.value = querySketch.value
-                            console.log(jaroskaMeals.value)
                             window.history.replaceState({}, "", "?" + exportQueryToUrl(querySignal.value));
 
                         }}>
-                            <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white max-w-lg"} value={useQuery.value} onInput$={(e) => {
+                            <input type="text" placeholder={"Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-blackg border-red-500 border-2 text-lg text-white max-w-lg"} value={useQuery.value} onInput$={(e) => {
                                 querySketch.value = (e.target as any).value
                             }}/>
-                            <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-black border-red-500 border-2 text-lg text-white cursor-pointer"} />
+                            <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-blackg border-red-500 border-2 text-lg text-white cursor-pointer"} />
                         </form>
                     </div>
                 </div>
@@ -170,7 +165,7 @@ export default component$(() => {
 
 
                             return(
-                                <div key={e.fileName} class={"flex items-center flex-col shadow-gray-700 shadow mt-3 pb-1.5 mx-1 rounded-xl"}>
+                                <div key={e.fileName} class={"flex items-center flex-col shadow mt-3 pb-1.5 mx-1 rounded bg-gray-900"}>
                                     <div>
                                         <img src={modifiedURL} alt={e.jmeno} loading={"lazy"} class={"rounded"} width={180} height={180}/>
                                     </div>
@@ -191,35 +186,6 @@ export const useQLoader = routeLoader$(async ({query}) => {
     return query.get("q") || ""
 })
 
-
-const serverMeals = server$(async function (query: string){
-    const mealArray: { jmeno: string, fileName: string, imageURL: string }[] = []
-    const querySnap = await getDocs(colRef)
-
-    querySnap.forEach((meal) => {
-        if (query) {
-            const normalizedFilter = query
-                .normalize("NFD") // Normalize diacritics
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
-            const normalizedMealName = meal.data().jmeno
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .toLowerCase()
-
-            if (normalizedMealName.includes(normalizedFilter)) {
-                mealArray.push(meal.data() as any)
-            } else {
-                return
-            }
-
-        } else {
-            mealArray.push(meal.data() as any)
-        }
-    })
-
-    return mealArray
-})
 
 export const useJaroskaMeals = routeLoader$(async() => {
     const currentDate = getCurrentDate(1)

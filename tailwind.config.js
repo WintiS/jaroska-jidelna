@@ -5,6 +5,9 @@ module.exports = {
     extend: {
       height: {
         '70': '70vh',
+      },
+      colors: {
+        'blackg': "#0F0F0F"
       }
     },
   },
