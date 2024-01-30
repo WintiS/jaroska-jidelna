@@ -1,9 +1,10 @@
-import {component$, } from "@builder.io/qwik";
+import {component$, useSignal,} from "@builder.io/qwik";
 import {addDoc, collection, getFirestore} from "firebase/firestore";
-import {getStorage, ref, uploadBytes} from "firebase/storage"
+import {getStorage, ref, uploadBytes, getDownloadURL} from "firebase/storage"
 import {initializeApp} from "firebase/app";
 import {server$} from "@builder.io/qwik-city";
 import {normalize} from "~/routes";
+import {p} from "../../../functions/server/assets/@qwik-city-plan-KGrup6uw";
 
 
 const firebaseConfig = {
@@ -24,49 +25,55 @@ const colRefNeOff = collection(db, "neofJidla")
 
 
 interface Props {
-    name: string
+    name: string,
 }
-
-
-const pushMeal = server$(async (file:File, fileName:string, jmeno:string) => {
-    const storageRef = ref(storage, fileName);
-    await uploadBytes(storageRef, file)
-    await addDoc(colRefNeOff, {
-        fileName: fileName,
-        jmeno: jmeno,
-        normalizedMealName: normalize(jmeno)
-    })
-    console.log("uploaded")
-})
-
-
 
 
 export const UploadMeal = component$((props:Props) => {
 
-
+    const track = useSignal(false)
+    const finished = useSignal(false)
     return(
         <div class={"w-4/5 bg-gray-900 py-2.5 px-4 rounded"}>
             <div class={"text-white flex items-center justify-center"}>
                 <div class={"w-2/3"}>
                     <p>{props.name}</p>
                 </div>
-                <div class={"flex justify-center items-center"}>
+                <div class={"flex justify-center items-center w-1/2"}>
                     <label for={props.name} class={"border-solid border-2 border-red-500 px-3 py-2 rounded cursor-pointer"}>
-                        <span>Nahrát fotku jídla</span>
+                        <div class="relative ">
+                            {track.value?
+                                <div class="relative inline-flex">
+                                    <div class="w-7 h-7 bg-red-500 rounded-full mt-1"></div>
+                                    <div class="w-7 h-7 bg-red-500 rounded-full absolute animate-ping mt-1"></div>
+                                    <div class="w-7 h-7 bg-red-500 rounded-full absolute animate-pulse mt-1"></div>
+                                </div>
+                            :
+                            finished?
+                                <p>Nahrát fotku</p>
+                            :
+                                <p>Nahráno</p>}
+                        </div>
                     </label>
                     <input type="file" accept={"image/*"} id={props.name} class={"hidden"} onChange$={async (e) => {
                         // @ts-ignore
                         const file = (e.target as HTMLInputElement).files[0]
                         if (file){
                             const storageRef = ref(storage, file.name);
+                            track.value = true
                             await uploadBytes(storageRef, file)
+
+                            const downloadURL = await getDownloadURL(ref(storage, file.name))
                             await addDoc(colRefNeOff, {
                                 fileName: file.name,
                                 jmeno: props.name,
-                                normalizedMealName: normalize(props.name)
+                                normalizedMealName: normalize(props.name),
+                                imageURL: downloadURL
                             })
-                            console.log("uploaded" + props.name)
+                            console.log("added doc")
+                            finished.value = true
+                            track.value = false
+
                         }
                     }}/>
                 </div>

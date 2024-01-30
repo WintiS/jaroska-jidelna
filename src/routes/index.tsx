@@ -72,7 +72,7 @@ export default component$(() => {
         const query = isServer? useQuery.value : querySignal.value
         let querySnap
         query? querySnap = await getDocs(colRef) : querySnap = await getDocs(limititedColRef)
-        isServer? console.log("running usetask$ on server") : renderedMealsArray.length = 0
+        isServer? console.log("running usetask$ on server") : console.log("running usetask$ on client")
         querySnap.forEach((meal) => {
 
             if (query) {
@@ -141,6 +141,8 @@ export default component$(() => {
                     {
                         renderedMealsArray.map((e) => {
 
+                            console.log(renderedMealsArray)
+                            console.log("rerendered")
                             let modifiedURL = (e.imageURL)
                             let extension = ("")
                             let result = ([""])
@@ -191,16 +193,24 @@ export const useJaroskaMeals = routeLoader$(async() => {
     const currentDate = getCurrentDate(1)
     const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
     const meals = await res.json()
-    const rows = meals.groups[0].rows
-    return rows.map((meal: MealItem) => meal.item.mealName)
+    if (meals.groups[0]){
+        const rows = meals.groups[0].rows
+        return rows.map((meal: MealItem) => meal.item.mealName)
+    }else {
+        return ["Dnes si nepochutnáme :("]
+    }
 })
 
 export const useJaroskaMealsYesterday = routeLoader$(async () => {
     const currentDate = getCurrentDate(2)
     const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
     const meals = await res.json()
-    const rows = meals.groups[0].rows
-    return rows.map((meal: MealItem) => meal.item.mealName)
+    if (meals.groups[0]){
+        const rows = meals.groups[0].rows
+        return rows.map((meal: MealItem) => meal.item.mealName)
+    }else {
+        return ["Včera nebyla chálka"]
+    }
 })
 
 export const head: DocumentHead = {
