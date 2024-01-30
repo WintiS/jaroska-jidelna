@@ -8,6 +8,7 @@ import {getStorage} from "firebase/storage";
 import {isServer} from "@builder.io/qwik/build";
 import {Switchbutton} from "~/components/items/switchbutton";
 import {UploadMeal} from "~/components/items/uploadmeal";
+import {Fetchedmeal} from "~/components/items/fetchedmeal";
 
 const firebaseConfig = {
     apiKey: "AIzaSyA6njn4hz3Yz7dC6LAwBY5EB6do3oJxkTo",
@@ -56,38 +57,39 @@ interface MealItem {
     };
 }
 
+export interface Meal {
+    jmeno: string,
+    fileName: string,
+    imageURL: string
+}
+
 
 export default component$(() => {
-    const state = useSignal(true)
-    const querySignal = useSignal("")
-    const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
-    const querySketch = useSignal("")
-
     const useQuery = useQLoader()
     const jaroskaMeals = useJaroskaMeals()
     const yesterdayMeals = useJaroskaMealsYesterday()
 
+    const state = useSignal(true)
+    const querySignal = useSignal(useQuery.value)
+    const querySketch = useSignal("")
+    const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
+
     useTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
-        const query = isServer? useQuery.value : querySignal.value
+        const query = querySignal.value
         let querySnap
         query? querySnap = await getDocs(colRef) : querySnap = await getDocs(limititedColRef)
         isServer? console.log("running usetask$ on server") : console.log("running usetask$ on client")
         querySnap.forEach((meal) => {
-
             if (query) {
                 const normalizedFilter = normalize(query)
                 const normalizedMealName = normalize(meal.data().jmeno)
 
                 if (normalizedMealName.includes(normalizedFilter)) {
-
-                    renderedMealsArray.push(meal.data() as any)
-                } else {
-                    return
+                    renderedMealsArray.push(meal.data() as Meal)
                 }
-
             } else {
-                renderedMealsArray.push(meal.data() as any)
+                renderedMealsArray.push(meal.data() as Meal)
             }
         })
         cleanup(() => renderedMealsArray.length = 0)
@@ -140,41 +142,8 @@ export default component$(() => {
                 <div class={"flex flex-wrap justify-center"}>
                     {
                         renderedMealsArray.map((e) => {
-
-                            console.log(renderedMealsArray)
-                            console.log("rerendered")
-                            let modifiedURL = (e.imageURL)
-                            let extension = ("")
-                            let result = ([""])
-
-                            result = e.imageURL.split(".png")
-                            extension = ".png"
-                            if (result[1]){
-                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
-                            }
-
-                            if(!result[1]){
-                                result = e.imageURL.split(".jpeg")
-                                extension = ".jpeg"
-                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
-                            }
-                            if(!result[1]){
-                                result = e.imageURL.split(".jpg")
-                                extension = ".jpg"
-                                modifiedURL =  result[0] + "_200x200" + extension + result[1]
-                            }
-
-
-
                             return(
-                                <div key={e.fileName} class={"flex items-center flex-col shadow mt-3 pb-1.5 mx-1 rounded bg-gray-900"}>
-                                    <div>
-                                        <img src={modifiedURL} alt={e.jmeno} loading={"lazy"} class={"rounded"} width={180} height={180}/>
-                                    </div>
-                                    <div class={"w-40 mt-1"}>
-                                        <p class={"text-white text-sm"}>{e.jmeno}</p>
-                                    </div>
-                                </div>
+                                <Fetchedmeal jmeno={e.jmeno} fileName={e.fileName} imageURL={e.imageURL} key={e.imageURL}/>
                             )
                         })
                     }
