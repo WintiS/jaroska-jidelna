@@ -2,9 +2,7 @@ import {component$, useSignal,} from "@builder.io/qwik";
 import {addDoc, collection, getFirestore} from "firebase/firestore";
 import {getStorage, ref, uploadBytes, getDownloadURL} from "firebase/storage"
 import {initializeApp} from "firebase/app";
-import {server$} from "@builder.io/qwik-city";
 import {normalize} from "~/routes";
-import {p} from "../../../functions/server/assets/@qwik-city-plan-KGrup6uw";
 
 
 const firebaseConfig = {

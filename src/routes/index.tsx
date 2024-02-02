@@ -1,6 +1,6 @@
 import {component$, useSignal, useStore, useTask$} from "@builder.io/qwik";
 import type {DocumentHead} from "@builder.io/qwik-city";
-import {routeLoader$, server$} from "@builder.io/qwik-city";
+import {routeLoader$} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
 import {collection, getDocs, getFirestore, limit, orderBy, query} from "firebase/firestore";
 import {initializeApp} from "firebase/app";
@@ -33,14 +33,17 @@ export function exportQueryToUrl(query: string) {
 
 }
 
-export function getCurrentDate(setBack:number): string {
+
+function getDate(setback:number): string {
     const today = new Date();
+    const dayBeforeYesterday = new Date(today);
+    dayBeforeYesterday.setDate(today.getDate() - setback);
 
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, '0'); // Adding 1 because months are zero-based
-    const day = today.getDate().toString().padStart(2, '0');
+    const year = dayBeforeYesterday.getFullYear();
+    const month = (dayBeforeYesterday.getMonth() + 1).toString().padStart(2, '0');
+    const day = dayBeforeYesterday.getDate().toString().padStart(2, '0');
 
-    return `${year}-${month}-${Number(day) - setBack}`;
+    return `${year}-${month}-${day}`;
 }
 
 export const normalize = (element: string): string => {
@@ -159,7 +162,7 @@ export const useQLoader = routeLoader$(async ({query}) => {
 
 
 export const useJaroskaMeals = routeLoader$(async() => {
-    const currentDate = getCurrentDate(1)
+    const currentDate = getDate(1)
     const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
     const meals = await res.json()
     if (meals.groups[0]){
@@ -171,7 +174,7 @@ export const useJaroskaMeals = routeLoader$(async() => {
 })
 
 export const useJaroskaMealsYesterday = routeLoader$(async () => {
-    const currentDate = getCurrentDate(2)
+    const currentDate = getDate(2)
     const res = await fetch(`https://jidelna.jaroska.cz/webkredit/Api/Ordering/Menu?Dates=${currentDate}T23%3A00%3A00.000Z&CanteenId=1`)
     const meals = await res.json()
     if (meals.groups[0]){
