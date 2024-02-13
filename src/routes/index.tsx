@@ -1,4 +1,4 @@
-import {component$, useSignal, useStore, useTask$} from "@builder.io/qwik";
+import {component$, useSignal, useStore, useTask$, useVisibleTask$} from "@builder.io/qwik";
 import type {DocumentHead} from "@builder.io/qwik-city";
 import {routeLoader$} from "@builder.io/qwik-city";
 import {MainNav} from "~/components/items/mainnav";
@@ -77,7 +77,7 @@ export default component$(() => {
     const querySketch = useSignal("")
     const renderedMealsArray:{jmeno: string, fileName: string, imageURL: string }[] = useStore([], {deep:true})
 
-    useTask$(async ({track, cleanup}) => {
+    useVisibleTask$(async ({track, cleanup}) => {
         track(() => querySignal.value)
         const query = querySignal.value
         let querySnap
