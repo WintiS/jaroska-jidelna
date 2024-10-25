@@ -70,6 +70,7 @@ export interface Meal {
 
 
 export default component$(() => {
+
   const useQuery = useQLoader()
   const jaroskaMeals = useJaroskaMeals()
   const yesterdayMeals = useJaroskaMealsYesterday()
@@ -79,9 +80,13 @@ export default component$(() => {
   const querySketch = useSignal("")
   const renderedMealsArray: { jmeno: string, fileName: string, imageURL: string }[] = useStore([], { deep: true })
   // eslint-disable-next-line qwik/no-use-visible-task
-  useVisibleTask$(async ({ track, cleanup }) => {
+  useVisibleTask$(async ({ track }) => {
     track(() => querySignal.value)
     const query = querySignal.value
+    if(renderedMealsArray.length != 0){
+      renderedMealsArray.length = 0;
+      console.log("setting size of an array to 0")
+    }
     let querySnap
     query ? querySnap = await getDocs(colRef) : querySnap = await getDocs(limititedColRef)
     isServer ? console.log("running usetask$ on server") : console.log("running usetask$ on client")
@@ -97,7 +102,7 @@ export default component$(() => {
         renderedMealsArray.push(meal.data() as Meal)
       }
     })
-    cleanup(() => renderedMealsArray.length = 0)
+
   })
 
   return (
@@ -133,11 +138,16 @@ export default component$(() => {
           <div id={"search"}>
             <p class={"text-white text-2xl"}>Nevíte jak jídlo vypadá?</p>
             <form preventdefault:submit onSubmit$={() => {
-              querySignal.value = querySketch.value
+
+              querySignal.value = querySketch.value;
               window.history.replaceState({}, "", "?" + exportQueryToUrl(querySignal.value));
+              window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth',
+                  });
 
             }}>
-              <input type="text" placeholder={isquery ? isquery : "Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-blackg border-red-500 border-2 text-lg text-white max-w-lg"} value={useQuery.value} onInput$={(e) => {
+              <input type="text" placeholder={isquery ? isquery : "Zadejte jeho jméno zde:"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-blackg border-red-500 border-2 text-lg text-white max-w-lg"} value={isquery} onInput$={(e) => {
                 querySketch.value = (e.target as HTMLInputElement).value
               }} />
               <input type="submit" value={"Hledat"} class={"mt-3 mb-6 px-4 py-2.5 rounded bg-blackg border-red-500 border-2 text-lg text-white cursor-pointer"} />
